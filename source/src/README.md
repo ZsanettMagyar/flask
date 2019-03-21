@@ -1,0 +1,1 @@
+Source is from "Get started with Docker in your projects - Through examples" by Mark Takacs

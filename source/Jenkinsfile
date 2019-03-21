@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        registry = 'nexus.cicd:5000'
+        appname = 'flask.hello'
+        appversiontag = '4.0'
+        artifact = "${registry}/${appname}:${appversiontag}"
+        //nexus_user = credentials('nexus-docker-snapshots')
+    }
+    
+    tools {
+        'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'Docker 18.06.0-ce'
+    }
+   
+    options {
+        //Persist artifacts and console output for the specific number of recent Pipeline runs
+        buildDiscarder(logRotator(numToKeepStr: '2', artifactNumToKeepStr: '2'))
+    }
+
+    stages {
+        stage('Docker build') {
+            steps {
+                echo 'Docker build...'
+                echo "tag: ${artifact}"
+                withDockerRegistry([url: "https://${registry}", credentialsId: 'nexus-jenkins']) {
+                    sh "DOCKER_BUILDKIT=1 docker build --rm --no-cache -t ${artifact} ./src"
+                }
+            }
+            // docker run -i -d --rm --name flask.hello -p 15000:5000 flask.hello
+        }
+        stage('Nexus upload') {
+            steps {
+                echo 'Nexus upload....'
+                withDockerRegistry([url: "https://${registry}", credentialsId: 'nexus-jenkins']) {
+                    sh "docker push ${artifact}"
+                }
+            }
+        }        
+    }
+    
+    /*post {
+        always {
+            sh "docker rmi --force ${artifact}"
+        }
+        //success {
+            //sh "docker  rmi --force ${artifact}"
+        //}
+        //failure {
+            //mail to: 'magyar.zsanett@alerant.hu',
+                 //subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
+                 //body: "Something is wrong with ${env.BUILD_URL}"
+        //}
+        cleanup {
+            cleanWs()
+        }
+    }*/
+}
